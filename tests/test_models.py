@@ -1,7 +1,7 @@
 """
 Pruebas para src/models/trainee_model.py
 
-Cada prueba redirige DATA_FILE y CSV_FILE a un directorio temporal (tmp_path)
+Cada prueba redirige ARCHIVO_DATOS y ARCHIVO_CSV a un directorio temporal (tmp_path)
 para no tocar nunca los datos reales del proyecto (data/aprendices.json),
 y reinicia la lista en memoria antes de cada caso.
 """
@@ -17,167 +17,170 @@ from models import trainee_model
 def datos_temporales(tmp_path, monkeypatch):
     """Aísla cada prueba: redirige los archivos de datos a una carpeta temporal
     y deja la lista en memoria vacía antes de cada prueba."""
-    monkeypatch.setattr(trainee_model, "DATA_DIR", str(tmp_path))
-    monkeypatch.setattr(trainee_model, "DATA_FILE", str(tmp_path / "aprendices.json"))
-    monkeypatch.setattr(trainee_model, "CSV_FILE", str(tmp_path / "aprendices.csv"))
-    monkeypatch.setattr(trainee_model, "trainee", [])
+    monkeypatch.setattr(trainee_model, "DIRECTORIO_DATOS", str(tmp_path))
+    monkeypatch.setattr(trainee_model, "ARCHIVO_DATOS", str(tmp_path / "aprendices.json"))
+    monkeypatch.setattr(trainee_model, "ARCHIVO_CSV", str(tmp_path / "aprendices.csv"))
+    monkeypatch.setattr(trainee_model, "aprendices", [])
     yield
 
-def aprendiz_ejemplo(documento="123", nombre="Ander Flor"):
+
+def aprendiz_ejemplo(documento="123", nombres="Ander", apellidos="Flor"):
     return {
         "tipo_doc": "CC",
         "documento": documento,
-        "nombre": nombre,
+        "nombres": nombres,
+        "apellidos": apellidos,
         "ficha": "111111",
         "programa": "Adso",
         "correo": "ander@correo.com",
     }
 
+
 # --------------------------------------------------------------
-# register_trainee / get_all
+# registrar_aprendiz / obtener_todos
 # --------------------------------------------------------------
 
-def test_register_trainee_nuevo_se_agrega_y_persiste():
+def test_registrar_aprendiz_nuevo_se_agrega_y_persiste():
     aprendiz = aprendiz_ejemplo()
 
-    resultado = trainee_model.register_trainee(aprendiz)
+    resultado = trainee_model.registrar_aprendiz(aprendiz)
 
     assert resultado is True
-    assert trainee_model.get_all() == [aprendiz]
+    assert trainee_model.obtener_todos() == [aprendiz]
 
     # Se debe haber guardado en el archivo JSON
-    with open(trainee_model.DATA_FILE, "r", encoding="utf-8") as f:
+    with open(trainee_model.ARCHIVO_DATOS, "r", encoding="utf-8") as f:
         guardado = json.load(f)
     assert guardado == [aprendiz]
 
 
-def test_register_trainee_documento_duplicado_no_se_agrega():
-    trainee_model.register_trainee(aprendiz_ejemplo(documento="123"))
+def test_registrar_aprendiz_documento_duplicado_no_se_agrega():
+    trainee_model.registrar_aprendiz(aprendiz_ejemplo(documento="123"))
 
-    resultado = trainee_model.register_trainee(aprendiz_ejemplo(documento="123", nombre="Otro Nombre"))
+    resultado = trainee_model.registrar_aprendiz(aprendiz_ejemplo(documento="123", nombres="Otro", apellidos="Nombre"))
 
     assert resultado is False
-    assert len(trainee_model.get_all()) == 1
+    assert len(trainee_model.obtener_todos()) == 1
 
 
 # --------------------------------------------------------------
-# search_by_document
+# buscar_por_documento
 # --------------------------------------------------------------
 
-def test_search_by_document_encuentra_existente():
-    trainee_model.register_trainee(aprendiz_ejemplo(documento="123"))
+def test_buscar_por_documento_encuentra_existente():
+    trainee_model.registrar_aprendiz(aprendiz_ejemplo(documento="123"))
 
-    encontrado = trainee_model.search_by_document("123")
+    encontrado = trainee_model.buscar_por_documento("123")
 
     assert encontrado is not None
     assert encontrado["documento"] == "123"
 
 
-def test_search_by_document_no_encuentra_inexistente():
-    assert trainee_model.search_by_document("999") is None
+def test_buscar_por_documento_no_encuentra_inexistente():
+    assert trainee_model.buscar_por_documento("999") is None
 
 
 # --------------------------------------------------------------
-# search_by_name_or_group
+# buscar_por_nombre_o_ficha
 # --------------------------------------------------------------
 
-def test_search_by_name_or_group_por_nombre_parcial_e_insensible_a_mayusculas():
-    trainee_model.register_trainee(aprendiz_ejemplo(documento="1", nombre="Ander Flor"))
-    trainee_model.register_trainee(aprendiz_ejemplo(documento="2", nombre="Maria Ruiz"))
+def test_buscar_por_nombre_o_ficha_por_nombre_parcial_e_insensible_a_mayusculas():
+    trainee_model.registrar_aprendiz(aprendiz_ejemplo(documento="1", nombres="Ander", apellidos="Flor"))
+    trainee_model.registrar_aprendiz(aprendiz_ejemplo(documento="2", nombres="Maria", apellidos="Ruiz"))
 
-    resultados = trainee_model.search_by_name_or_group("ander")
+    resultados = trainee_model.buscar_por_nombre_o_ficha("ander")
 
     assert len(resultados) == 1
     assert resultados[0]["documento"] == "1"
 
 
-def test_search_by_name_or_group_por_ficha():
-    trainee_model.register_trainee(aprendiz_ejemplo(documento="1"))
+def test_buscar_por_nombre_o_ficha_por_ficha():
+    trainee_model.registrar_aprendiz(aprendiz_ejemplo(documento="1"))
 
-    resultados = trainee_model.search_by_name_or_group("111111")
+    resultados = trainee_model.buscar_por_nombre_o_ficha("111111")
 
     assert len(resultados) == 1
 
 
-def test_search_by_name_or_group_sin_coincidencias_retorna_lista_vacia():
-    trainee_model.register_trainee(aprendiz_ejemplo(documento="1"))
+def test_buscar_por_nombre_o_ficha_sin_coincidencias_retorna_lista_vacia():
+    trainee_model.registrar_aprendiz(aprendiz_ejemplo(documento="1"))
 
-    resultados = trainee_model.search_by_name_or_group("no existe")
+    resultados = trainee_model.buscar_por_nombre_o_ficha("no existe")
 
     assert resultados == []
 
 
 # --------------------------------------------------------------
-# update_trainee
+# actualizar_aprendiz
 # --------------------------------------------------------------
 
-def test_update_trainee_existente_actualiza_datos():
-    trainee_model.register_trainee(aprendiz_ejemplo(documento="123", nombre="Nombre Viejo"))
+def test_actualizar_aprendiz_existente_actualiza_datos():
+    trainee_model.registrar_aprendiz(aprendiz_ejemplo(documento="123", nombres="Nombre", apellidos="Viejo"))
 
-    resultado = trainee_model.update_trainee("123", {"nombre": "Nombre Nuevo"})
+    resultado = trainee_model.actualizar_aprendiz("123", {"nombres": "Nombre", "apellidos": "Nuevo"})
 
     assert resultado is True
-    actualizado = trainee_model.search_by_document("123")
-    assert actualizado["nombre"] == "Nombre Nuevo"
+    actualizado = trainee_model.buscar_por_documento("123")
+    assert actualizado["apellidos"] == "Nuevo"
     # El documento no debe cambiar
     assert actualizado["documento"] == "123"
 
 
-def test_update_trainee_inexistente_retorna_false():
-    resultado = trainee_model.update_trainee("999", {"nombre": "Nadie"})
+def test_actualizar_aprendiz_inexistente_retorna_false():
+    resultado = trainee_model.actualizar_aprendiz("999", {"nombres": "Nadie", "apellidos": "Nadie"})
 
     assert resultado is False
 
 
 # --------------------------------------------------------------
-# delete_trainee
+# eliminar_aprendiz
 # --------------------------------------------------------------
 
-def test_delete_trainee_existente_lo_elimina():
-    trainee_model.register_trainee(aprendiz_ejemplo(documento="123"))
+def test_eliminar_aprendiz_existente_lo_elimina():
+    trainee_model.registrar_aprendiz(aprendiz_ejemplo(documento="123"))
 
-    resultado = trainee_model.delete_trainee("123")
+    resultado = trainee_model.eliminar_aprendiz("123")
 
     assert resultado is True
-    assert trainee_model.search_by_document("123") is None
-    assert trainee_model.get_all() == []
+    assert trainee_model.buscar_por_documento("123") is None
+    assert trainee_model.obtener_todos() == []
 
 
-def test_delete_trainee_inexistente_retorna_false():
-    resultado = trainee_model.delete_trainee("999")
+def test_eliminar_aprendiz_inexistente_retorna_false():
+    resultado = trainee_model.eliminar_aprendiz("999")
 
     assert resultado is False
 
 
 # --------------------------------------------------------------
-# export_to_csv
+# exportar_a_csv
 # --------------------------------------------------------------
 
-def test_export_to_csv_genera_archivo_con_encabezado_y_filas():
-    trainee_model.register_trainee(aprendiz_ejemplo(documento="1", nombre="Ander Flor"))
-    trainee_model.register_trainee(aprendiz_ejemplo(documento="2", nombre="Maria Ruiz"))
+def test_exportar_a_csv_genera_archivo_con_encabezado_y_filas():
+    trainee_model.registrar_aprendiz(aprendiz_ejemplo(documento="1", nombres="Ander", apellidos="Flor"))
+    trainee_model.registrar_aprendiz(aprendiz_ejemplo(documento="2", nombres="Maria", apellidos="Ruiz"))
 
-    ruta = trainee_model.export_to_csv()
+    ruta = trainee_model.exportar_a_csv()
 
     with open(ruta, "r", encoding="utf-8") as f:
         filas = list(csv.DictReader(f))
 
     assert len(filas) == 2
     assert filas[0]["documento"] == "1"
-    assert filas[1]["nombre"] == "Maria Ruiz"
+    assert filas[1]["apellidos"] == "Ruiz"
 
 
 # --------------------------------------------------------------
-# _load_data (carga inicial desde archivo)
+# _cargar_datos (carga inicial desde archivo)
 # --------------------------------------------------------------
 
-def test_load_data_archivo_inexistente_retorna_lista_vacia():
-    assert trainee_model._load_data() == []
+def test_cargar_datos_archivo_inexistente_retorna_lista_vacia():
+    assert trainee_model._cargar_datos() == []
 
 
-def test_load_data_archivo_corrupto_retorna_lista_vacia(tmp_path, monkeypatch):
+def test_cargar_datos_archivo_corrupto_retorna_lista_vacia(tmp_path, monkeypatch):
     archivo_corrupto = tmp_path / "corrupto.json"
     archivo_corrupto.write_text("{ esto no es json valido ", encoding="utf-8")
-    monkeypatch.setattr(trainee_model, "DATA_FILE", str(archivo_corrupto))
+    monkeypatch.setattr(trainee_model, "ARCHIVO_DATOS", str(archivo_corrupto))
 
-    assert trainee_model._load_data() == []
+    assert trainee_model._cargar_datos() == []

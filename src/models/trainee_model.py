@@ -2,79 +2,104 @@ import json
 import os
 import csv
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-DATA_DIR = os.path.join(BASE_DIR, "data")
-DATA_FILE = os.path.join(DATA_DIR, "aprendices.json")
-CSV_FILE = os.path.join(DATA_DIR, "aprendices.csv")
+# --- Punto 1: Ruta del archivo JSON dentro de la carpeta data/ ---
+# Se calcula de forma dinámica para que funcione sin importar desde dónde
+# se ejecute el programa (no se deja "quemada" una ruta fija).
+DIRECTORIO_BASE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+DIRECTORIO_DATOS = os.path.join(DIRECTORIO_BASE, "data")
+ARCHIVO_DATOS = os.path.join(DIRECTORIO_DATOS, "aprendices.json")
+ARCHIVO_CSV = os.path.join(DIRECTORIO_DATOS, "aprendices.csv")
 
 
-def _load_data():
-    if not os.path.exists(DATA_FILE):
+def _cargar_datos():
+    """Carga la lista de aprendices desde el archivo JSON. Si no existe, retorna una lista vacía."""
+    if not os.path.exists(ARCHIVO_DATOS):
         return []
     try:
-        with open(DATA_FILE, "r", encoding="utf-8") as file:
-            contenido = file.read().strip()
+        with open(ARCHIVO_DATOS, "r", encoding="utf-8") as archivo:
+            contenido = archivo.read().strip()
             if not contenido:
                 return []
             return json.loads(contenido)
     except (json.JSONDecodeError, OSError):
+        # Si el archivo está corrupto o no se puede leer, se inicia con lista vacía
         return []
 
-def _save_data(data):
-    os.makedirs(DATA_DIR, exist_ok=True)
-    with open(DATA_FILE, "w", encoding="utf-8") as file:
-        json.dump(data, file, indent=4, ensure_ascii=False)
 
-trainee = _load_data()
+def _guardar_datos(datos):
+    """Guarda la lista de aprendices en el archivo JSON."""
+    os.makedirs(DIRECTORIO_DATOS, exist_ok=True)
+    with open(ARCHIVO_DATOS, "w", encoding="utf-8") as archivo:
+        json.dump(datos, archivo, indent=4, ensure_ascii=False)
 
-def get_all():
-    return trainee
 
-def search_by_document(document):
-    for a in trainee:
-        if a["documento"] == document:
+# Lista de aprendices, se carga una sola vez al iniciar el programa
+aprendices = _cargar_datos()
+
+
+def obtener_todos():
+    """Obtiene todos los aprendices registrados."""
+    return aprendices
+
+
+def buscar_por_documento(documento):
+    """Busca un aprendiz por su número de documento."""
+    for a in aprendices:
+        if a["documento"] == documento:
             return a
     return None
 
-def search_by_name_or_group(query):
-    query = query.strip().lower()
+
+def buscar_por_nombre_o_ficha(consulta):
+    """Busca aprendices cuyo nombre completo (nombres + apellidos) o ficha
+    coincidan (parcialmente) con el texto dado."""
+    consulta = consulta.strip().lower()
     resultados = []
-    for a in trainee:
-        if query in a["nombre"].lower() or query in a["ficha"].lower():
+    for a in aprendices:
+        nombre_completo = f"{a['nombres']} {a['apellidos']}".lower()
+        if consulta in nombre_completo or consulta in a["ficha"].lower():
             resultados.append(a)
     return resultados
 
-def register_trainee(new_trainee):
-    if search_by_document(new_trainee["documento"]):
-        return False 
-    trainee.append(new_trainee)
-    _save_data(trainee)
+
+def registrar_aprendiz(nuevo_aprendiz):
+    """Registra un nuevo aprendiz si no existe previamente."""
+    if buscar_por_documento(nuevo_aprendiz["documento"]):
+        return False  # Ya existe un aprendiz con este documento
+    aprendices.append(nuevo_aprendiz)
+    _guardar_datos(aprendices)
     return True
 
-def update_trainee(document, new_data):
-    existing = search_by_document(document)
-    if not existing:
+
+def actualizar_aprendiz(documento, nuevos_datos):
+    """Actualiza los datos de un aprendiz ya existente. No permite cambiar el documento."""
+    existente = buscar_por_documento(documento)
+    if not existente:
         return False
-    existing.update(new_data)
-    _save_data(trainee)
+    existente.update(nuevos_datos)
+    _guardar_datos(aprendices)
     return True
 
-def delete_trainee(document):
-    existing = search_by_document(document)
-    if not existing:
+
+def eliminar_aprendiz(documento):
+    """Elimina un aprendiz de la lista según su número de documento."""
+    existente = buscar_por_documento(documento)
+    if not existente:
         return False
-    trainee.remove(existing)
-    _save_data(trainee)
+    aprendices.remove(existente)
+    _guardar_datos(aprendices)
     return True
 
-def export_to_csv():
-    os.makedirs(DATA_DIR, exist_ok=True)
-    campos = ["tipo_doc", "documento", "nombre", "ficha", "programa", "correo"]
 
-    with open(CSV_FILE, "w", newline="", encoding="utf-8") as file:
-        writer = csv.DictWriter(file, fieldnames=campos)
-        writer.writeheader()
-        for aprendiz in trainee:
-            writer.writerow(aprendiz)
+def exportar_a_csv():
+    """Exporta la lista de aprendices a un archivo CSV dentro de la carpeta data/."""
+    os.makedirs(DIRECTORIO_DATOS, exist_ok=True)
+    campos = ["tipo_doc", "documento", "nombres", "apellidos", "ficha", "programa", "correo"]
 
-    return CSV_FILE
+    with open(ARCHIVO_CSV, "w", newline="", encoding="utf-8") as archivo:
+        escritor = csv.DictWriter(archivo, fieldnames=campos)
+        escritor.writeheader()
+        for aprendiz in aprendices:
+            escritor.writerow(aprendiz)
+
+    return ARCHIVO_CSV

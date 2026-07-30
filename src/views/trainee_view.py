@@ -1,12 +1,15 @@
 from models import trainee_model
 from templates import trainee_template
 
-def register_trainee_view():
 
-    data = trainee_template.get_trainee_input()
+def registrar_aprendiz_vista():
+    """Lógica para procesar el registro de un aprendiz desde la vista."""
+    # Solicitar datos al usuario a través de la capa PLANTILLA
+    datos = trainee_template.obtener_datos_aprendiz()
 
-    if trainee_model.search_by_document(data["documento"]):
-        trainee_template.display_message(
+    # Validar si el aprendiz ya existe
+    if trainee_model.buscar_por_documento(datos["documento"]):
+        trainee_template.mostrar_mensaje(
             {
                 "type": "error",
                 "text": "Ya existe un aprendiz registrado con este número de documento.",
@@ -14,87 +17,98 @@ def register_trainee_view():
         )
         return
 
-    trainee_model.register_trainee(data)
+    # Registrar aprendiz a través de la capa MODELO
+    trainee_model.registrar_aprendiz(datos)
 
-    trainee_template.display_message(
+    # Confirmar en la interfaz
+    trainee_template.mostrar_mensaje(
         {
             "type": "success",
-            "text": f"Aprendiz {data['nombre']} registrado exitosamente en la ficha {data['ficha']}.",
+            "text": f"Aprendiz {datos['nombres']} {datos['apellidos']} registrado exitosamente en la ficha {datos['ficha']}.",
         }
     )
 
-def status_view():
-    all_trainees = trainee_model.get_all()
-    trainee_template.display_trainee_list(all_trainees)
 
-def edit_trainee_view():
-    document = trainee_template.get_document_input(
+def estado_vista():
+    """Muestra el estado actual de la lista de aprendices registrados."""
+    todos_los_aprendices = trainee_model.obtener_todos()
+    trainee_template.mostrar_lista_aprendices(todos_los_aprendices)
+
+
+def editar_aprendiz_vista():
+    """Lógica para editar los datos de un aprendiz existente."""
+    documento = trainee_template.obtener_documento(
         "Número de documento del aprendiz a editar: "
     )
-    current = trainee_model.search_by_document(document)
+    actual = trainee_model.buscar_por_documento(documento)
 
-    if not current:
-        trainee_template.display_message(
+    if not actual:
+        trainee_template.mostrar_mensaje(
             {"type": "error", "text": "No existe un aprendiz con ese número de documento."}
         )
         return
 
-    trainee_template.display_message({"type": "info", "text": "Datos actuales del aprendiz:"})
-    trainee_template.display_trainee(current)
+    trainee_template.mostrar_mensaje({"type": "info", "text": "Datos actuales del aprendiz:"})
+    trainee_template.mostrar_aprendiz(actual)
 
-    new_data = trainee_template.get_trainee_update_input(current)
-    trainee_model.update_trainee(document, new_data)
+    nuevos_datos = trainee_template.obtener_datos_actualizacion(actual)
+    trainee_model.actualizar_aprendiz(documento, nuevos_datos)
 
-    trainee_template.display_message(
-        {"type": "success", "text": f"Aprendiz {new_data['nombre']} actualizado exitosamente."}
+    trainee_template.mostrar_mensaje(
+        {"type": "success", "text": f"Aprendiz {nuevos_datos['nombres']} {nuevos_datos['apellidos']} actualizado exitosamente."}
     )
 
-def delete_trainee_view():
-    document = trainee_template.get_document_input(
+
+def eliminar_aprendiz_vista():
+    """Lógica para eliminar un aprendiz existente de la lista."""
+    documento = trainee_template.obtener_documento(
         "Número de documento del aprendiz a eliminar: "
     )
-    current = trainee_model.search_by_document(document)
+    actual = trainee_model.buscar_por_documento(documento)
 
-    if not current:
-        trainee_template.display_message(
+    if not actual:
+        trainee_template.mostrar_mensaje(
             {"type": "error", "text": "No existe un aprendiz con ese número de documento."}
         )
         return
 
-    trainee_template.display_trainee(current)
+    trainee_template.mostrar_aprendiz(actual)
 
-    if not trainee_template.display_confirm_delete(current["nombre"]):
-        trainee_template.display_message({"type": "info", "text": "Eliminación cancelada."})
+    if not trainee_template.confirmar_eliminacion(f"{actual['nombres']} {actual['apellidos']}"):
+        trainee_template.mostrar_mensaje({"type": "info", "text": "Eliminación cancelada."})
         return
 
-    trainee_model.delete_trainee(document)
-    trainee_template.display_message(
+    trainee_model.eliminar_aprendiz(documento)
+    trainee_template.mostrar_mensaje(
         {"type": "success", "text": "Aprendiz eliminado exitosamente."}
     )
 
-def search_trainee_view():
-    query = trainee_template.get_search_query()
-    resultados = trainee_model.search_by_name_or_group(query)
+
+def buscar_aprendiz_vista():
+    """Lógica para buscar aprendices por nombre o ficha."""
+    consulta = trainee_template.obtener_busqueda()
+    resultados = trainee_model.buscar_por_nombre_o_ficha(consulta)
 
     if not resultados:
-        trainee_template.display_message(
+        trainee_template.mostrar_mensaje(
             {"type": "info", "text": "No se encontraron aprendices que coincidan con la búsqueda."}
         )
         return
 
-    trainee_template.display_trainee_list(resultados)
+    trainee_template.mostrar_lista_aprendices(resultados)
 
 
-def export_csv_view():
-    all_trainees = trainee_model.get_all()
+def exportar_csv_vista():
+    """Lógica para exportar la lista de aprendices a un archivo CSV."""
+    todos_los_aprendices = trainee_model.obtener_todos()
 
-    if not all_trainees:
-        trainee_template.display_message(
+    if not todos_los_aprendices:
+        trainee_template.mostrar_mensaje(
             {"type": "info", "text": "No hay aprendices registrados para exportar."}
         )
         return
 
-    ruta = trainee_model.export_to_csv()
-    trainee_template.display_message(
+    ruta = trainee_model.exportar_a_csv()
+    trainee_template.mostrar_mensaje(
         {"type": "success", "text": f"Lista exportada exitosamente en: {ruta}"}
     )

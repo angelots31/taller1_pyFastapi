@@ -1,6 +1,6 @@
 structure.sh
 enfolded.bat
 /data/aprendices.json
-/src/models/__pycache__/
-/src/templates/__pycache__/
-/src/views/__pycache__/
+__pycache__/
+*.pyc
+.pytest_cache/
